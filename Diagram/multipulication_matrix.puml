@@ -1,0 +1,48 @@
+@startuml diagram
+header 행렬 곱셈 프로그램 상태도
+skinparam state {
+    BackgroundColor<<Error>> Pink
+    BorderColor<<Error>> Red
+}
+
+[*] --> WaitingForA : 프로그램 시작
+
+state "Matrix A 입력 단계" as StepA {
+    state "A 입력 대기" as InputA
+    state "A 데이터 검증" as ProcessingA
+    
+    [*] --> InputA
+    InputA --> ProcessingA : [사용자 입력 완료]
+    ProcessingA --> InputA : [ValueError 발생] <<Error>>
+}
+
+state "Matrix B 입력 단계" as StepB {
+    state "B 입력 대기" as InputB
+    state "B 데이터 검증" as ProcessingB
+    
+    [*] --> InputB
+    InputB --> ProcessingB : [사용자 입력 완료]
+    ProcessingB --> InputB : [ValueError 발생] <<Error>>
+}
+
+StepA -down-> StepB : [A 변환 성공]
+
+state "연산 가능 여부 확인" as Judgment {
+    state "matrix_judgment()" as check
+}
+
+StepB -down-> Judgment : [B 변환 성공]
+
+Judgment ----> StepA : [곱셈 불가: A열 != B행]
+Judgment -down-> Calculation : [곱셈 가능]
+
+state "결과 산출" as Calculation {
+    state "행렬 곱 연산" as compute
+    state "결과 출력" as display
+    
+    [*] --> compute
+    compute --> display
+}
+
+Calculation -down-> [*] : [Break]
+@enduml
