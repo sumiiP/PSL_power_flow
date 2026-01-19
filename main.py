@@ -2,6 +2,18 @@ from function import *
 
 def main() :
     
+    INF_DICT_BUS = {"path": "DATA\Bus.txt", "headers": ["ID", "Bus-type", "P_g", "Q_g", "P_L", "Q_L", "|Vi|", "δi"] }
+    INF_DICT_LINE = {"path": "DATA\Line.txt", "headers": ["ID_from", "ID_to", "R", "X", "B"] }
+    
+    BUS_VAL = read_bus_file(INF_DICT_BUS.get('path'), INF_DICT_BUS.get('headers'))
+    LINE_VAL = read_line_file(INF_DICT_LINE.get('path'), INF_DICT_LINE.get('headers'))
+    
+    print("<------------Bus data------------>")
+    print(BUS_VAL)
+    print("<------------Line data------------>")
+    print(LINE_VAL)
+    
+    
     # while True : 
     # # Received MATRIX A data from the user
     #     MATRIX_A = input_matrix()   

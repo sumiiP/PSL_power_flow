@@ -1,0 +1,25 @@
+@startuml
+skinparam ActivityFontSize 12
+skinparam ActivityDiamondFontSize 12
+
+title 함수 호출 및 데이터 흐름
+
+start
+:<b>main.py</b> 실행;
+:setting values (파일 경로, 헤더) 준비;
+
+partition "function.py 호출" {
+    :read_bus_file() 실행;
+    :read_line_file() 실행;
+}
+
+if (헤더 개수 == 데이터 열 개수?) then (YES)
+    :헤더 적용 및 데이터 반환;
+else (NO)
+    :에러 메시지 출력 (Header Error);
+    :빈 데이터 or 에러 반환;
+endif
+
+:<b>main.py</b>에서 결과 출력;
+stop
+@enduml
