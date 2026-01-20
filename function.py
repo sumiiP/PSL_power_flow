@@ -1,44 +1,24 @@
 import numpy as np
 import pandas as pd
 
-def read_bus_file(file_path, headers) :
+def read_data_file(file_path, headers) :
     try : 
-        BUS_MATRIX = pd.read_csv(file_path, sep='\s+', header=None)
+        RESULT_MATRIX = pd.read_csv(file_path, sep='\t', header=None)
 
         # row,columns shape 확인
-        rows, cols = BUS_MATRIX.shape
+        rows, cols = RESULT_MATRIX.shape
         
         # header 추가
         if len(headers) == int(cols) :
-            BUS_MATRIX.columns = headers
-            
+            RESULT_MATRIX.columns = headers
+            return RESULT_MATRIX
         else : 
             print("Header information error.")
-    
-    except Exception as e : 
-        print(f"An error occurred while reading the file : {e}")
-    
-    return BUS_MATRIX
-    
-def read_line_file(file_path, headers) :
-    try : 
-        LINE_MATRIX = pd.read_csv(file_path, sep='\s+', header=None)
-
-        # row,columns shape 확인
-        rows, cols = LINE_MATRIX.shape
+            return None
         
-        # header 추가
-        if len(headers) == int(cols) :
-            LINE_MATRIX.columns = headers
-            
-        else : 
-            print("Header information error.")
-            return ValueError("Header mismatch")
-    
     except Exception as e : 
         print(f"An error occurred while reading the file : {e}")
-    
-    return LINE_MATRIX
+        return None    
 
 def input_matrix() :
     while True : 
