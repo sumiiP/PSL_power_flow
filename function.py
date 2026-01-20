@@ -31,6 +31,7 @@ def calc_admittance_matrix(BUS_DATA, LINE_DATA) :
     # Initialize Y_bus matrix
     Y_bus = np.zeros((BUS_DATA.shape[0], BUS_DATA.shape[0]), dtype=complex)
     
+    # [TBD] BUS_DATA에서 BUS TYPE에 따른 처리 필요시 추가 (ex: slack bus 등)
     for i in range(LINE_DATA.shape[0]) :
         k = int(LINE_DATA.iloc[i]['ID_from']) - 1  # Adjusting for zero-based index
         n = int(LINE_DATA.iloc[i]['ID_to']) - 1    # Adjusting for zero-based index
@@ -55,6 +56,17 @@ def calc_admittance_matrix(BUS_DATA, LINE_DATA) :
         # print(Y_bus_df)
 
     return Y_bus
+
+def extract_bus_types(BUS_DATA) :
+    bus_types = BUS_DATA['Bus-type'].unique()
+    bus_type_dict = {}
+    
+    for b_type in bus_types :
+        bus_type_dict[b_type] = BUS_DATA[BUS_DATA['Bus-type'] == b_type]['ID'].tolist()
+    
+    return bus_type_dict
+
+#def calc_voltage_magnitude_angle(///)
 
 def input_matrix() :
     while True : 
