@@ -1,4 +1,51 @@
 @startuml
+skinparam Style strictuml
+skinparam SequenceMessageAlignment center
+
+title Power System Analysis Detail Flow (main.py & function.py)
+
+participant "Main Process" as M
+participant "Data Loader\n(read_data_file)" as DL
+participant "Network Modeler\n(get_admittance_matrix)" as NM
+participant "Power Solver\n(get_calculated_powers)" as PS
+
+== 1. Data Loading & Preprocessing ==
+
+M -> DL : read_data_file(path, headers)
+activate DL
+    DL -> DL : pd.read_csv(sep=' t ')
+    alt Header Length Matches
+        DL --> M : Return RESULT_MATRIX (DataFrame)
+    else Mismatch
+        DL --> M : Print Error & Return None
+    end
+deactivate DL
+
+M -> M : get_net_injection_power(BUS DATA)\n(P_net = P_g - P_L)
+M -> M : get_theta_voltage_vector(BUS DATA)\n(Convert degree to radians)
+
+== 2. Y-Bus Formation ==
+
+M -> NM : get_admittance_matrix(BUS_DATA, LINE_DATA)
+activate NM
+    loop for each line in LINE_DATA
+        NM -> NM : Calculate Z = R + jX, Y = 1/Z
+        NM -> NM : B_shunt = j(B/2)
+        NM -> NM : Update Self-Admittance Y[k,k], Y[n,n]
+        NM -> NM : Update Mutual-Admittance Y[k,n], Y[n,k]
+    end
+    NM --> M : Return Y_BUS (Complex Matrix)
+deactivate NM
+M -> M : get_conductance_susceptance_matrices()\n(Extract G_MATRIX, B_MATRIX)
 
 
-@enduml
+== 3. Power Calculation (PQ Bus Focus) ==
+
+M -> M : extract_bus_types(BUS_DATA)\n(Group Bus IDs by Type)
+
+alt PQ Bus Exists (Type 3)
+    M -> PS : get_calculated_powers_imaginary(pq_bus_ids, Y_BUS, ...)
+    activate PS
+    M -> PS : get_calculated_powers_rectangular(pq_bus_ids, G_MATRIX, B_MATRIX, ...)
+    activate PS
+        loop for

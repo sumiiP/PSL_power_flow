@@ -21,18 +21,29 @@ def read_data_file(file_path, headers) :
         print(f"An error occurred while reading the file : {e}")
         return None    
 
+# Calculate net injection power
 def get_net_injection_power(P_g, Q_g, P_L, Q_L) :
     P_net = P_g - P_L
     Q_net = Q_g - Q_L
     # print(type(P_net))
     return P_net, Q_net
+
+# New function to get theta and voltage vectors
+def get_theta_voltage_vector(BUS_DATA) :
+    theta_vector = np.radians(BUS_DATA['δi'].values)
+    voltage_vector = BUS_DATA['|Vi|'].values
     
-def calc_admittance_matrix(BUS_DATA, LINE_DATA) :
+    return theta_vector, voltage_vector
+
+def get_admittance_matrix(BUS_DATA, LINE_DATA) :
     # Initialize Y_bus matrix
-    Y_bus = np.zeros((BUS_DATA.shape[0], BUS_DATA.shape[0]), dtype=complex)
+    Y_BUS = np.zeros((BUS_DATA.shape[0], BUS_DATA.shape[0]), dtype=complex)
     
-    # [TBD] BUS_DATA에서 BUS TYPE에 따른 처리 필요시 추가 (ex: slack bus 등)
     for i in range(LINE_DATA.shape[0]) :
+        # Line DATA columns - iloc index : [0:"ID_from", 1:"ID_to", 2:"R", 3:"X", 4:"B"]
+        row = LINE_DATA.iloc[i]
+        # print(f" 첫번째 : {LINE_DATA.iloc[i]['ID_from']}")
+        # print(row.iloc[0] - 1)
         k = int(LINE_DATA.iloc[i]['ID_from']) - 1  # Adjusting for zero-based index
         n = int(LINE_DATA.iloc[i]['ID_to']) - 1    # Adjusting for zero-based index
         
@@ -44,29 +55,78 @@ def calc_admittance_matrix(BUS_DATA, LINE_DATA) :
         B_shunt = complex(0, B / 2)
         
         # Self-admittance
-        Y_bus[k, k] += Y + B_shunt
-        Y_bus[n, n] += Y + B_shunt
+        Y_BUS[k, k] += Y + B_shunt
+        Y_BUS[n, n] += Y + B_shunt
         # Mutual admittance
-        Y_bus[k, n] -= Y
-        Y_bus[n, k] -= Y
+        Y_BUS[k, n] -= Y
+        Y_BUS[n, k] -= Y
         
         # debugging print
-        # Y_bus_df = pd.DataFrame(Y_bus, index=BUS_DATA['ID'], columns=BUS_DATA['ID'])
+        # Y_bus_df = pd.DataFrame(Y_BUS, index=BUS_DATA['ID'], columns=BUS_DATA['ID'])
         # print(f"After processing line {i+1} (from bus {k+1} to bus {n+1}):")
         # print(Y_bus_df)
+    return Y_BUS
 
-    return Y_bus
+def get_conductance_susceptance_matrices(Y_BUS) :
+    G_MATRIX = Y_BUS.real
+    B_MATRIX = Y_BUS.imag
+    
+    # print(G_MATRIX, B_MATRIX)
+    return G_MATRIX, B_MATRIX
 
 def extract_bus_types(BUS_DATA) :
     bus_types = BUS_DATA['Bus-type'].unique()
-    bus_type_dict = {}
+    BUS_TYPE_DICT = {}
     
     for b_type in bus_types :
-        bus_type_dict[b_type] = BUS_DATA[BUS_DATA['Bus-type'] == b_type]['ID'].tolist()
+        BUS_TYPE_DICT[b_type] = BUS_DATA[BUS_DATA['Bus-type'] == b_type]['ID'].tolist()
     
-    return bus_type_dict
+    return BUS_TYPE_DICT
 
-#def calc_voltage_magnitude_angle(///)
+# expressed in imaginary coordinates
+def get_calculated_powers_imaginary(pq_bus_ids, Y_BUS, P_net, Q_net, voltage_vector, theta_vector) :
+    RESULT = []
+    for bus_id in pq_bus_ids :
+        i = bus_id - 1  # Adjusting for zero-based index
+        P_calc = 0
+        Q_calc = 0
+        
+        # off-diagonal element contribution - mutual admittance
+        for j in range(len(voltage_vector)) :
+            if i != j :
+                P_calc += voltage_vector[i] * voltage_vector[j] * (Y_BUS[i, j].real * np.cos(theta_vector[i] - theta_vector[j]) + Y_BUS[i, j].imag * np.sin(theta_vector[i] - theta_vector[j]))
+                Q_calc += voltage_vector[i] * voltage_vector[j] * (Y_BUS[i, j].real * np.sin(theta_vector[i] - theta_vector[j]) - Y_BUS[i, j].imag * np.cos(theta_vector[i] - theta_vector[j]))
+        # diagonlal element contribution - self admittance
+        P_calc += voltage_vector[i]**2 * Y_BUS[i, i].real
+        Q_calc += voltage_vector[i]**2 * (-Y_BUS[i, i].imag)
+        
+        # print(f"Bus ID: {bus_id}, Calculated P: {P_calc:.4f}, Given P_net: {P_net.iloc[i]:.4f}, Calculated Q: {Q_calc:.4f}, Given Q_net: {Q_net.iloc[i]:.4f}")
+        RESULT.append(({'bus_id': bus_id, 'P_calc': P_calc, 'Q_calc': Q_calc}))
+    print(RESULT)
+    
+    return RESULT
+# expressed in rectangular coordinates
+def get_calculated_powers_rectangular(pq_bus_ids, G_MATRIX, B_MATRIX, P_net, Q_net, voltage_vector, theta_vector) :
+    RESULT = []
+    for bus_id in pq_bus_ids :
+        i = bus_id - 1  # Adjusting for zero-based index
+        P_calc = 0
+        Q_calc = 0
+        
+        # off-diagonal element contribution - mutual admittance
+        for j in range(len(voltage_vector)) :
+            if i != j :
+                P_calc += voltage_vector[i] * voltage_vector[j] * (G_MATRIX[i, j] * np.cos(theta_vector[i] - theta_vector[j]) + B_MATRIX[i, j] * np.sin(theta_vector[i] - theta_vector[j]))
+                Q_calc += voltage_vector[i] * voltage_vector[j] * (G_MATRIX[i, j] * np.sin(theta_vector[i] - theta_vector[j]) - B_MATRIX[i, j] * np.cos(theta_vector[i] - theta_vector[j]))
+                # print(f"G_MATRIX[{i},{j}] : {G_MATRIX[i,j]}, B_MATRIX[{i},{j}] : {B_MATRIX[i,j]}")
+        # diagonlal element contribution - self admittance
+        P_calc += voltage_vector[i]**2 * G_MATRIX[i, i]
+        Q_calc += voltage_vector[i]**2 * (-B_MATRIX[i, i])
+        # print(f"G_MATRIX row {i} data: {G_MATRIX[i, :]}") 
+        # print(f"Bus ID: {bus_id}, Calculated P: {P_calc:.4f}, Given P_net: {P_net.iloc[i]:.4f}, Calculated Q: {Q_calc:.4f}, Given Q_net: {Q_net.iloc[i]:.4f}")
+        RESULT.append(({'bus_id': bus_id, 'P_calc': P_calc, 'Q_calc': Q_calc}))
+    print(RESULT)
+    return RESULT
 
 def input_matrix() :
     while True : 
