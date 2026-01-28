@@ -1,0 +1,51 @@
+@startuml
+title Power System Analysis - Power Flow cal algorithum
+
+database "DATA \n(Bus, Line)" as DATA
+participant "Main Process" as M
+'defind class
+participant First_Loader << (C,#ADD1B2) DataLoader >>
+participant First_Solver << (C,#95bce8) PowerFlowSolver >>
+participant First_CSV << (C, #f8e920) ExportToCSV>>
+participant First_Graph << (C, #f8e920) ShowToGraph>>
+
+== 1. Data Loading & Preprocessing ==
+
+M -> First_Loader : Data Load
+activate First_Loader
+    alt Data Loading
+        First_Loader --> DATA : DATA File Request : pd.read_csv(sep=' t ')
+        DATA -> First_Loader : DATA File Response
+    end
+
+    alt Preprocessing
+        First_Loader -> First_Loader : Make a DataFrame
+        First_Loader -> First_Loader : Determine input & unknown data (add to DF)
+        First_Loader -> First_Loader : Make a Ybus Matrix (calc admittance matrix)
+    end
+        First_Loader -> First_Loader : Converting Pandas datatype to NumPy
+deactivate First_Loader
+
+== 2. Power Flow Calculation ==
+
+First_Loader -> First_Solver : Sending a NumPy array
+activate First_Solver
+    alt Power Flow Calculation
+        First_Solver -> First_Solver : Calculate ΔP and ΔQ
+        First_Solver -> First_Solver : Calculate Jacobi
+    end
+First_Solver -> First_Solver : Converting NumPy datatype to Pandas
+deactivate First_Solver
+
+== 3. Export to data result ==
+First_Solver -> First_CSV : Sending a Pandas df
+group Export to CSV
+    First_CSV -> First_CSV : 
+end
+
+First_Solver -> First_Graph : Sending a Pandas df
+group Show to Graph
+    First_Graph -> First_Graph :
+end
+
+@enduml
