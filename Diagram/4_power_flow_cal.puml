@@ -23,22 +23,22 @@ activate First_Loader
         First_Loader -> First_Loader : Determine input & unknown data (add to DF)
         First_Loader -> First_Loader : Make a Ybus Matrix (calc admittance matrix)
     end
-        First_Loader -> First_Loader : Converting Pandas datatype to NumPy
+        First_Loader -> M : Converting Pandas datatype to NumPy
 deactivate First_Loader
 
 == 2. Power Flow Calculation ==
 
-First_Loader -> First_Solver : Sending a NumPy array
+M -> First_Solver : Sending a NumPy array
 activate First_Solver
     alt Power Flow Calculation
         First_Solver -> First_Solver : Calculate ΔP and ΔQ
         First_Solver -> First_Solver : Calculate Jacobi
     end
-First_Solver -> First_Solver : Converting NumPy datatype to Pandas
+First_Solver -> M : Converting NumPy datatype to Pandas
 deactivate First_Solver
 
 == 3. Export to data result ==
-First_Solver -> First_CSV : Sending a Pandas df
+M -> First_CSV : Sending a Pandas df
 group Export to CSV
     First_CSV -> First_CSV : 
 end
