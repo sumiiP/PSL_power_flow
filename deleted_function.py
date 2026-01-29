@@ -1,13 +1,6 @@
 import numpy as np
 import pandas as pd
 
-# # Calculate net injection power
-# def get_net_injection_power(P_g, Q_g, P_L, Q_L) :
-#     P_net = P_g - P_L
-#     Q_net = Q_g - Q_L
-#     # print(type(P_net))
-#     return P_net, Q_net
-
 # # New function to get theta and voltage vectors
 # def get_theta_voltage_vector(BUS_DATA) :
 #     theta_vector = np.radians(BUS_DATA['δi'].values)
