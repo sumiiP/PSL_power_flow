@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
     
 class DataLoader :
     def __init__(self, busFilePath, lineFilePath, busHeader, lineHeader) :
@@ -30,13 +31,10 @@ class DataLoader :
             return None
         
     def load_all_data(self) :
-        self.bus_df = self._load_and_clean(self.busFilePath, self.busHeader)
-        self.line_df = self._load_and_clean(self.lineFilePath, self.lineHeader)
-        
-        return self.bus_df, self.line_df
+        self.bus_df = self.read_data_file(self.busFilePath, self.busHeader)
+        self.line_df = self.read_data_file(self.lineFilePath, self.lineHeader)
         
     def distinguish_input_unknown_data(self) : 
-        
         df = self.bus_df
         df['P_net'] = df['P_g'] - df['P_L'] #calculate Net active Power
         df['Q_net'] = df['Q_g'] - df['Q_L'] #calculate Net reactive Power
@@ -51,5 +49,35 @@ class DataLoader :
         
         return id_info
         
-    # def make_admittance_matrix() :
+    def make_admittance_matrix(self) :
+        if self.bus_df is None or self.line_df is None : 
+            self.load_all_data()
         
+        bus_df = self.bus_df
+        line_df = self.line_df
+        
+        #initalize the Y_bus matrix to zeros
+        bus_num = len(bus_df)
+        Y_bus = np.zeros((bus_num, bus_num), dtype=complex)
+        
+        for _, row in line_df.iterrows() :
+            k = int(row['ID_from']) - 1
+            n = int(row['ID_to']) - 1
+            
+            # Z = R + jX, Y = 1/Z
+            z_line = complex(row['R'], row['X'])
+            y_line = 1 / z_line
+            
+            # shunt component (B/2 placed on each end bus)
+            b_shunt = complex(0, row['B'] / 2)
+            
+            # Mutual Admittance : Y_kn = Y_nk = -y_line
+            Y_bus[k, n] -= y_line
+            Y_bus[n, k] -= y_line
+            
+            # Self Admittance : Cumulative sum of connected y_lines and shunts.
+            # Y_kk = sum(y_connected) + sum(y_shunt)
+            Y_bus[k, k] += (y_line + b_shunt)
+            Y_bus[n, n] += (y_line + b_shunt)
+        
+        return Y_bus
