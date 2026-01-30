@@ -1,13 +1,3 @@
-import numpy as np
-import pandas as pd
-
-# # New function to get theta and voltage vectors
-# def get_theta_voltage_vector(BUS_DATA) :
-#     theta_vector = np.radians(BUS_DATA['δi'].values)
-#     voltage_vector = BUS_DATA['|Vi|'].values
-    
-#     return theta_vector, voltage_vector
-
 # # expressed in imaginary coordinates
 # def get_calculated_powers_imaginary(pq_bus_ids, Y_BUS, P_net, Q_net, voltage_vector, theta_vector) :
 #     RESULT = []
@@ -30,6 +20,7 @@ import pandas as pd
 #     print(RESULT)
     
 #     return RESULT
+
 # # expressed in rectangular coordinates
 # def get_calculated_powers_rectangular(pq_bus_ids, G_MATRIX, B_MATRIX, P_net, Q_net, voltage_vector, theta_vector) :
 #     RESULT = []

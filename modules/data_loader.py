@@ -13,7 +13,7 @@ class DataLoader :
         self.line_df = None
         
     # %%
-    def read_data_file(self, path, headers) :
+    def _read_data_file(self, path, headers) :
         try : 
             df = pd.read_csv(path, sep='\t', header=None)
             df = df.apply(pd.to_numeric, downcast='float', errors = 'coerce')
@@ -31,8 +31,8 @@ class DataLoader :
             return None
         
     def load_all_data(self) :
-        self.bus_df = self.read_data_file(self.busFilePath, self.busHeader)
-        self.line_df = self.read_data_file(self.lineFilePath, self.lineHeader)
+        self.bus_df = self._read_data_file(self.busFilePath, self.busHeader)
+        self.line_df = self._read_data_file(self.lineFilePath, self.lineHeader)
         
     def distinguish_input_unknown_data(self) : 
         df = self.bus_df
@@ -48,8 +48,14 @@ class DataLoader :
         }
         
         return id_info
+    
+    def convert_to_rectangular(self) :
+        # Convert polar coordinates (V, delta) to rectangular coordinates (e, f)
+        # V = |V|*cos(δ) + j*|V|*sin(δ)
+        self.bus_df['e'] = self.bus_df['|Vi|'] * np.cos(np.radians(self.bus_df['δi']))
+        self.bus_df['f'] = self.bus_df['|Vi|'] * np.sin(np.radians(self.bus_df['δi']))
         
-    def make_admittance_matrix(self) :
+    def make_admittance_matrix(self) : # [TBD] Improvments via Numpy's vectorized operations or sparse matrix library
         if self.bus_df is None or self.line_df is None : 
             self.load_all_data()
         
