@@ -2,6 +2,7 @@ from modules.data_loader import DataLoader
 from modules.pf_solver import PowerFlowLoader
 
 from config import BUS_FILE_PATH, LINE_FILE_PATH, BUS_FILE_HEADER_LIST, LINE_FILE_HEADER_LIST
+from config import MAX_ITER, TOLERANCE
 
 class FlowManager : 
     def run_power_flow(self) : 
@@ -16,7 +17,9 @@ class FlowManager :
         
         # calculate the power flow equation
         solver = PowerFlowLoader(y_bus, loader.bus_df, id_info)
-        solver.calculate_pq
+        solver.calculate_power(MAX_ITER, TOLERANCE)
+        
+        # 
         
 
 if __name__ == "__main__":

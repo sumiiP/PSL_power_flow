@@ -31,10 +31,9 @@ class PowerFlowLoader :
         p_calc = e * term1 + f * term2
         q_calc = f * term1 - e * term2
         
-        return p_calc, q_calc
+        return p_calc, q_calc, term1, term2
         
     def _make_mismatch_vector(self) : # calculate to delta y
-        
         p_calc, q_calc = self._calculate_current_power()
         
         # active power(P) mismatch
@@ -47,10 +46,83 @@ class PowerFlowLoader :
         
         return mismatch_vector
     
-    def calculate_power() :
+    def calculate_power(self, MAX_ITER, TOLERANCE) :
+        # Newton-Raphson Iteration loop
+        for i in range(MAX_ITER) : 
+            mismatch = self._make_mismatch_vector()
+            
+            # step 1
+            max_error = np.max(np.abs(mismatch))
+            print(f"Iteration {i+1}: Max Mismatch = {max_error:.8f}")
+
+            # step 2
+            if max_error < TOLERANCE : 
+                print("--- Power Flow Converged! ---")
+                break
+            
+            # step 3
+            J = self._make_jacobian()
+            
+            # step 4 : (J * dx = mismatch)
+            dx = np.linalg.solve(J, mismatch)
+            
+            # step 5
+            len_p = len(self.p_idx) # delta P num
+            len_q = len(self.q_idx) # delta Q num
+            
+            # step 6
+            df_update = dx[:len_p] # delta f
+            de_update = dx[len_p:] # delta e
+            
+            # step 7
+            self.f[self.p_idx] += df_update
+            self.e[self.q_idx] += de_update
+            
+        else : 
+            print("!!! Power Flow Did Not Coverage !!!")
+    
+    def _make_jacobian(self) : 
+        # initial setting
+        e = self.e
+        f = self.f
+        G = self.Y.real
+        B = self.Y.imag
         
-    
-    
-# $P_{calc}, Q_{calc}$를 구하는 복소수 벡터 연산 로직 (Mismatch 벡터의 재료)
-# 자코비안 행렬의 각 요소($H, N, M, L$)를 채우는 미분 공식 구현
-# 전체 Newton-Raphson 루프의 정지 조건(Tolerance) 설정
+        # term1 = I_real = Ge - Bf, term2 = I_imag = Gf + Be
+        _, _, term1, term2 = self._calculate_current_power()
+        num_bus = len(self.df)
+        
+        # J11 = dP/df, J12 = dP/de, J21 = dQ/df, J22 = dQ/de
+        J11_f = np.zeros((num_bus, num_bus))
+        J12_f = np.zeros((num_bus, num_bus))
+        J21_f = np.zeros((num_bus, num_bus))
+        J22_f = np.zeros((num_bus, num_bus))
+        
+        # i != j (Off-diagonal), i = j (Diagonal)
+        for i in range(num_bus) : 
+            for j in range(num_bus) :
+                if i == j : # Diagonal
+                    J11_f[i, i] = term1[i] + G[i, i]*e[i] + B[i, i]*f[i]
+                    J12_f[i, i] = term2[i] + G[i, i]*f[i] - B[i, i]*e[i]
+                    J21_f[i, i] = term2[i] - (G[i, i]*f[i] - B[i, i]*e[i])
+                    J22_f[i, i] = -(term1[i] - (G[i, i]*e[i] + B[i, i]*f[i]))
+                    
+                else : # Off-diagonal
+                    J11_f[i, j] = G[i, j]*e[i] + B[i, j]*f[i]
+                    J12_f[i, j] = G[i, j]*f[i] - B[i, j]*e[i]
+                    J21_f[i, j] = J12_f[i, j]
+                    J22_f[i, j] = -J11_f[i, j]
+        
+        # extract the sub matrix by p_dix, q_idx
+        J11 = J11_f[np.ix_(self.p_idx, self.p_idx)]
+        J12 = J12_f[np.ix_(self.p_idx, self.q_idx)]
+        J21 = J21_f[np.ix_(self.q_idx, self.p_idx)]
+        J22 = J22_f[np.ix_(self.q_idx, self.q_idx)]
+        
+        # final Jacobian matrix            
+        J = np.block([
+            [J11, J12],
+            [J21, J22]
+        ])
+        
+        return J
