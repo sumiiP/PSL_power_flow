@@ -33,10 +33,19 @@ class PowerFlowLoader :
         
         return p_calc, q_calc
         
-    def _make_mismatch_vector(self) :
-        p_calc, q_calc = self.V
+    def _make_mismatch_vector(self) : # calculate to delta y
         
-        return
+        p_calc, q_calc = self._calculate_current_power()
+        
+        # active power(P) mismatch
+        delta_p = self.p_net[self.p_idx] - p_calc[self.p_idx]
+        # reactive power(Q) mismatch
+        delta_q = self.q_net[self.q_idx] - q_calc[self.q_idx]
+        
+        # The upper part is the differentiation with respect to P, and the lower part is the differentiation with respect to Q.
+        mismatch_vector = np.concatenate([delta_p, delta_q])
+        
+        return mismatch_vector
     
     def calculate_power() :
         
