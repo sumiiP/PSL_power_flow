@@ -9,3 +9,6 @@ LINE_FILE_HEADER_LIST = ["ID_from", "ID_to", "R", "X", "B"]
 # Newton-Raphson Iteration config
 MAX_ITER = 20
 TOLERANCE = 1e-6
+
+# Tolerance for determining the law of conservation of energy (Gen = Load + Loss)
+ENERGY_BALANCE_TOLERANCE = 1e-3
