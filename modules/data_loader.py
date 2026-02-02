@@ -87,13 +87,13 @@ class DataLoader :
             Y_bus[k, k] += (y_line + b_shunt)
             Y_bus[n, n] += (y_line + b_shunt)
         
-        # numpy matrix to DataFrame
-        bus_ids = bus_df['ID'].astype(int).tolist()
-        y_bus_df = pd.DataFrame(Y_bus, index=bus_ids, columns=bus_ids)
+        # # numpy matrix to DataFrame
+        # bus_ids = bus_df['ID'].astype(int).tolist()
+        # y_bus_df = pd.DataFrame(Y_bus, index=bus_ids, columns=bus_ids)
         
-        # print setting
-        pd.options.display.float_format = '{:.4f}'.format
-        print("\n### Y_bus Matrix (Admittance) ###")
-        print(y_bus_df)
+        # # print setting
+        # pd.options.display.float_format = '{:.4f}'.format
+        # print("\n### Y_bus Matrix (Admittance) ###")
+        # print(y_bus_df)
         
         return Y_bus

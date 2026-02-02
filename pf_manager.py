@@ -16,8 +16,11 @@ class FlowManager :
         y_bus = loader.make_admittance_matrix()
 
         # calculate the power flow equation
-        # solver = PowerFlowLoader(y_bus, loader.bus_df, id_info, loader.line_df)
-        # solver.calculate_power(MAX_ITER, TOLERANCE)
+        solver = PowerFlowLoader(y_bus, loader.bus_df, id_info, loader.line_df)
+        # solver._calculate_current_power()
+        # print(solver._make_mismatch_vector())
+        # print(solver._make_jacobian())
+        solver.calculate_power(MAX_ITER, TOLERANCE)
         
         # # # data processing
         # summary_df, bus_df, line_df = solver.get_final_results(ENERGY_BALANCE_TOLERANCE)
