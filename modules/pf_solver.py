@@ -13,6 +13,8 @@ class PowerFlowLoader :
         # initial setting
         self.e = bus_df['e'].values.astype(float)
         self.f = bus_df['f'].values.astype(float)
+        
+        # base_mva = 100.0
         self.p_net = bus_df['P_net'].values
         self.q_net = bus_df['Q_net'].values
         self.p_calc = None
@@ -20,7 +22,7 @@ class PowerFlowLoader :
         
         # Used to calculate final results
         self.line_df = line_df
-
+        
     def _calculate_current_power(self) :
         # Separation of real part(G) and imaginary part(B) of Y_bus
         G = self.Y.real
@@ -70,6 +72,7 @@ class PowerFlowLoader :
             
             # step 4 : (J * dx = mismatch)
             dx = np.linalg.solve(J, mismatch)
+            # print(f"dx {i}번째 : {dx}")
             
             # step 5
             len_p = len(self.p_idx) # delta P num
@@ -107,11 +110,20 @@ class PowerFlowLoader :
         # i != j (Off-diagonal), i = j (Diagonal)
         for i in range(num_bus) : 
             for j in range(num_bus) :
-                if i == j : # Diagonal
-                    J11_f[i, i] = term1[i] + G[i, i]*e[i] + B[i, i]*f[i]
-                    J12_f[i, i] = term2[i] + G[i, i]*f[i] - B[i, i]*e[i]
-                    J21_f[i, i] = term2[i] - (G[i, i]*f[i] - B[i, i]*e[i])
-                    J22_f[i, i] = -(term1[i] - (G[i, i]*e[i] + B[i, i]*f[i]))
+                if i == j: # Diagonal
+                    # dPi/dfi
+                    J11_f[i, i] = term1[i] + G[i, i]*f[i] - B[i, i]*e[i]
+                    # dPi/dei
+                    J12_f[i, i] = term2[i] + G[i, i]*e[i] + B[i, i]*f[i]
+                    # dQi/dfi
+                    J21_f[i, i] = term2[i] - (G[i, i]*e[i] + B[i, i]*f[i])
+                    # dQi/dei
+                    J22_f[i, i] = -term1[i] + (G[i, i]*f[i] - B[i, i]*e[i])
+                # if i == j : # Diagonal
+                #     J11_f[i, i] = term1[i] + G[i, i]*e[i] - B[i, i]*f[i]
+                #     J12_f[i, i] = term2[i] + G[i, i]*f[i] + B[i, i]*e[i]
+                #     J21_f[i, i] = term2[i] - (G[i, i]*f[i] + B[i, i]*e[i])
+                #     J22_f[i, i] = -term1[i] + (G[i, i]*e[i] - B[i, i]*f[i])
                     
                 else : # Off-diagonal
                     J11_f[i, j] = G[i, j]*e[i] + B[i, j]*f[i]

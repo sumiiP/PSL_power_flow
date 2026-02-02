@@ -71,7 +71,8 @@ class DataLoader :
             n = int(row['ID_to']) - 1
             
             # Z = R + jX, Y = 1/Z
-            z_line = complex(row['R'], row['X'])
+            z_line = row['R'] + 1j * row['X']
+            # z_line = complex(row['R'], row['X'])
             y_line = 1 / z_line
             
             # shunt component (B/2 placed on each end bus)
@@ -85,5 +86,14 @@ class DataLoader :
             # Y_kk = sum(y_connected) + sum(y_shunt)
             Y_bus[k, k] += (y_line + b_shunt)
             Y_bus[n, n] += (y_line + b_shunt)
+        
+        # numpy matrix to DataFrame
+        bus_ids = bus_df['ID'].astype(int).tolist()
+        y_bus_df = pd.DataFrame(Y_bus, index=bus_ids, columns=bus_ids)
+        
+        # print setting
+        pd.options.display.float_format = '{:.4f}'.format
+        print("\n### Y_bus Matrix (Admittance) ###")
+        print(y_bus_df)
         
         return Y_bus
