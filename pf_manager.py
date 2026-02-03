@@ -2,7 +2,7 @@ from modules.data_loader import DataLoader
 from modules.pf_solver import PowerFlowLoader
 
 from config import BUS_FILE_PATH, LINE_FILE_PATH, BUS_FILE_HEADER_LIST, LINE_FILE_HEADER_LIST
-from config import MAX_ITER, TOLERANCE, ENERGY_BALANCE_TOLERANCE
+from config import MAX_ITER, TOLERANCE, LOAD_FACTOR, DAMPING_FACTOR
 
 class FlowManager : 
     def run_power_flow(self) : 
@@ -20,8 +20,8 @@ class FlowManager :
         # solver._calculate_current_power()
         # print(solver._make_mismatch_vector())
         # print(solver._make_jacobian())
-        solver.calculate_power(MAX_ITER, TOLERANCE)
-        
+        value = solver.calculate_power(MAX_ITER, TOLERANCE, LOAD_FACTOR, DAMPING_FACTOR)
+        print(f"Convergence status: {value}")
         # # # data processing
         # summary_df, bus_df, line_df = solver.get_final_results(ENERGY_BALANCE_TOLERANCE)
         
