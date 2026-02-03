@@ -3,22 +3,19 @@ import numpy as np
 
 class PowerFlowLoader : 
     def __init__(self, y_bus, bus_df, id_info, line_df) : 
-        self.Y = y_bus
+        self.Y = y_bus # (33, 33)
         self.df = bus_df
         
         # mismatch judgment index
-        self.p_idx = [int(i) - 1 for i in id_info['p_id']]
-        self.q_idx = [int(i) - 1 for i in id_info['q_id']]
+        self.p_idx = [int(i) - 1 for i in id_info['p_id']] # 1 ~ 32
+        self.q_idx = [int(i) - 1 for i in id_info['q_id']] # 1 ~ 32
         
         # initial setting
-        # num_bus = len(bus_df)
-        # self.e = np.ones(num_bus)
-        # self.f = np.zeros(num_bus)
-        self.e = bus_df['e'].values.astype(float)
-        self.f = bus_df['f'].values.astype(float)
+        self.e = bus_df['e'].values.astype(float) # (33, )
+        self.f = bus_df['f'].values.astype(float) # (33, )
         
-        self.p_net = bus_df['P_net'].values
-        self.q_net = bus_df['Q_net'].values
+        self.p_net = bus_df['P_net'].values # (33, )
+        self.q_net = bus_df['Q_net'].values # (33, )
         self.p_calc = None
         self.q_calc = None
         
@@ -26,105 +23,71 @@ class PowerFlowLoader :
         self.line_df = line_df
         
     def _calculate_current_power(self) :
-        # Calculate the current power (P_calc, Q_calc) based on the current e and f values.
-        V = self.e + 1j * self.f  # Complex voltage vector
-        I = self.Y @ V            # Complex current vector
-        S = V * np.conj(I)        # Complex power vector
+        # V = e + jf
+        V = self.e + 1j * self.f # (33, )
+        # I = YV
+        I = self.Y @ V # (33, )
+        # S = V * conj(I) = P + jQ
+        S = V * np.conj(I) # (33, )
         
         self.p_calc = S.real
         self.q_calc = S.imag
         
-        return self.p_calc, self.q_calc
+        # return self.p_calc, self.q_calc
     
     def _make_mismatch_vector(self) : # calculate to delta y
         self._calculate_current_power()
         
         # Mismatch vector calculation
-        delta_p = self.p_net[self.p_idx] - self.p_calc[self.p_idx]
-        delta_q = self.q_net[self.q_idx] - self.q_calc[self.q_idx]
+        delta_p = self.p_net[self.p_idx] - self.p_calc[self.p_idx] # ΔP = P_net - P_calc
+        delta_q = self.q_net[self.q_idx] - self.q_calc[self.q_idx] # ΔQ = Q_net - Q_calc
+            # print(f"Delta P: {delta_p}, Delta Q: {delta_q}")
+            # print(f"Delta P shape: {delta_p.shape}, Delta Q shape: {delta_q.shape}")
         
-        mismatch_vector = np.concatenate([delta_p, delta_q])
+        mismatch_vector = np.concatenate([delta_p, delta_q]) # (64, )
+            # print(f"Mismatch Vector: {mismatch_vector}")
+            # print(f"Mismatch Vector Shape: {mismatch_vector.shape}")
         
         return mismatch_vector
     
-    def _make_jacobian(self):
-        # 1. Initial settings
+    def _make_jacobian(self) :
         e, f = self.e, self.f
-        V = e + 1j * f
         G, B = self.Y.real, self.Y.imag
 
-        # 2. Calculate current I
+        # I = YV
+        V = e + 1j * f
         I = self.Y @ V
         Ir, Ii = I.real, I.imag
 
-        # 3. Construct full Jacobian matrices
-        # J11=dP/df, J12=dP/de, J21=dQ/df, J22=dQ/de
-        diag_e = np.diag(e) 
-        diag_f = np.diag(f)
-        diag_Ir = np.diag(Ir)
-        diag_Ii = np.diag(Ii)
-
-        # dP/df (J11), dP/de (J12)
-        J11_f = diag_e @ B - diag_f @ G + diag_Ii  # dP/df
-        J12_f = diag_e @ G + diag_f @ B + diag_Ir  # dP/de
-
-        # dQ/df (J21), dQ/de (J22)
-        J21_f = diag_f @ B + diag_e @ G - diag_Ir  # dQ/df
-        J22_f = diag_f @ G - diag_e @ B + diag_Ii  # dQ/de
-
-        # 4. Extract sub-matrices based on p_idx and q_idx
-        J11 = J11_f[np.ix_(self.p_idx, self.p_idx)]
-        J12 = J12_f[np.ix_(self.p_idx, self.q_idx)]
-        J21 = J21_f[np.ix_(self.q_idx, self.p_idx)]
-        J22 = J22_f[np.ix_(self.q_idx, self.q_idx)]
-
-        J = np.block([[J11, J12], [J21, J22]])
-        print("Jacobian Matrix:\n", J)
+        # Jacobian sub matrices initialization
+        num_bus_reduced = len(e) - 1 # remove slack bus (32)
         
-        return np.block([[J11, J12], [J21, J22]])
-    
-    # def _make_jacobian(self):
-    #     # initial setting
-    #     e = self.e
-    #     f = self.f
-    #     G = self.Y.real
-    #     B = self.Y.imag
-    #     # num_bus = len(self.df)
-    #     n_p = len(self.p_idx)
-    #     n_q = len(self.q_idx)
+        H = np.zeros((num_bus_reduced, num_bus_reduced)) # dP/df
+        N = np.zeros((num_bus_reduced, num_bus_reduced)) # dP/de
+        K = np.zeros((num_bus_reduced, num_bus_reduced)) # dQ/df
+        L = np.zeros((num_bus_reduced, num_bus_reduced)) # dQ/de
 
-    #     # I = (G + jB)(e + jf) = (Ge - Bf) + j(Gf + Be)
-    #     I_real = G @ e - B @ f
-    #     I_imag = G @ f + B @ e
+        for i in range(num_bus_reduced) :
+            actual_i = i + 1
+            
+            for j in range(num_bus_reduced) :
+                actual_j = j + 1
+                
+                if i == j : # Diagonal elements
+                    H[i, j] = e[actual_i]*B[actual_i, actual_i] + f[actual_i]*G[actual_i, actual_i] + Ii[actual_i] # dP/df
+                    N[i, j] = e[actual_i]*G[actual_i, actual_i] - f[actual_i]*B[actual_i, actual_i] + Ir[actual_i] # dP/de
+                    K[i, j] = e[actual_i]*G[actual_i, actual_i] - f[actual_i]*B[actual_i, actual_i] - Ir[actual_i] # dQ/df
+                    L[i, j] = -e[actual_i]*B[actual_i, actual_i] - f[actual_i]*G[actual_i, actual_i] + Ii[actual_i] # dQ/de
+                else : # Off-diagonal elements
+                    H[i, j] = e[actual_i]*B[actual_i, actual_j] - f[actual_i]*G[actual_i, actual_j]
+                    N[i, j] = e[actual_i]*G[actual_i, actual_j] + f[actual_i]*B[actual_i, actual_j]
+                    K[i, j] = e[actual_i]*G[actual_i, actual_j] + f[actual_i]*B[actual_i, actual_j]
+                    L[i, j] = -e[actual_i]*B[actual_i, actual_j] + f[actual_i]*G[actual_i, actual_j]
+        
+        J = np.block([[H, N], [K, L]])
+        
+        return J
 
-    #     # Jacobian sub matrix zero initalize
-    #     J11 = np.zeros((n_p, n_p)) # dP/df
-    #     J12 = np.zeros((n_p, n_q)) # dP/de
-    #     J21 = np.zeros((n_q, n_p)) # dQ/df
-    #     J22 = np.zeros((n_q, n_q)) # dQ/de
-
-        # for i in range(len(self.df)):
-        #     for j in range(len(self.df)):
-        #         if i == j:  # Diagonal 
-        #             J11_f[i, i] = f[i] * G[i, i] - e[i] * B[i, i] + I_imag[i]
-        #             J12_f[i, i] = e[i] * G[i, i] + f[i] * B[i, i] + I_real[i]
-        #             J21_f[i, i] = f[i] * B[i, i] + e[i] * G[i, i] - I_real[i]
-        #             J22_f[i, i] = -e[i] * B[i, i] + f[i] * G[i, i] + I_imag[i]
-                    
-        #         else:  # Off-diagonal 
-        #             J11_f[i, j] = f[i] * G[i, j] - e[i] * B[i, j]
-        #             J12_f[i, j] = e[i] * G[i, j] + f[i] * B[i, j]
-        #             J21_f[i, j] = f[i] * B[i, j] + e[i] * G[i, j]
-        #             J22_f[i, j] = -e[i] * B[i, j] + f[i] * G[i, j]
-
-        # # extract the sub matrix by p_dix, q_idx
-        # J11 = J11_f[np.ix_(self.p_idx, self.p_idx)]
-        # J12 = J12_f[np.ix_(self.p_idx, self.q_idx)]
-        # J21 = J21_f[np.ix_(self.q_idx, self.p_idx)]
-        # J22 = J22_f[np.ix_(self.q_idx, self.q_idx)]
-
-        # final Jacobian matrix 
-    
     def calculate_power(self, MAX_ITER, TOLERANCE) :
         # Newton-Raphson Iteration loop
         for iteration in range(MAX_ITER) :
@@ -141,25 +104,27 @@ class PowerFlowLoader :
             J = self._make_jacobian()
             
             # 4. Solve for state variable updates
-            delta_x = np.linalg.solve(J, mismatch_vector)
+            try :
+                delta_x = np.linalg.solve(J, mismatch_vector)
+                # print(np.max(np.abs(delta_x)))
+            except np.linalg.LinAlgError :
+                print("❌ Jacobian matrix is singular!")
+                return False
             
-            # # delta_x 계산 직후에 추가
-            # max_step = np.max(np.abs(delta_x))
-            # print(f"- Max Voltage Update Step: {max_step:.4f}")
+            num_f = len(self.p_idx)
+            delta_f = delta_x[:num_f]
+            delta_e = delta_x[num_f:]
             
-            # if max_step > 0.5:
-            #     print("  ⚠️ Warning: Update step is too large! Check units (MW vs p.u.) or Jacobian signs.")
-                
-            # 5. Update state variables (e, f)
-            # Update e and f based on the indices
-            num_p = len(self.p_idx)
-            delta_f = delta_x[:num_p]
-            delta_e = delta_x[num_p:]
-
+            # 5. Update state variables
             self.f[self.p_idx] += delta_f
             self.e[self.q_idx] += delta_e
             
-        print(f"Did not converge within {MAX_ITER} iterations. Max mismatch: {max_mismatch}")
+            print(f"Iteration {iteration}: Max mismatch = {max_mismatch:.6e}")
+            # 루프 내부
+            # print(f"Iteration {iteration}")
+            # print(f"P_net[0]: {self.p_net[self.p_idx][0]:.4f}, P_calc[0]: {self.p_calc[self.p_idx][0]:.4f}")
+            # print(f"Q_net[0]: {self.q_net[self.q_idx][0]:.4f}, Q_calc[0]: {self.q_calc[self.q_idx][0]:.4f}")
+        print(f"❌ Did not converge. Max mismatch: {max_mismatch:.6e}")
         return False
         
     def _update_results(self):

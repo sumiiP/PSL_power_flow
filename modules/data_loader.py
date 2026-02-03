@@ -76,7 +76,7 @@ class DataLoader :
             y_line = 1 / z_line
             
             # shunt component (B/2 placed on each end bus)
-            b_shunt = complex(0, row['B'] / 2)
+            b_shunt = 1j * (row['B'] / 2)
             
             # Mutual Admittance : Y_kn = Y_nk = -y_line
             Y_bus[k, n] -= y_line
