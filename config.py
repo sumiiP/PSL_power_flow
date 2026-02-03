@@ -1,6 +1,10 @@
+import os
+
 # File path specification
 BUS_FILE_PATH = "DATA\Bus.txt"
 LINE_FILE_PATH = "DATA\Line.txt"
+CSV_OUTPUT_PATH = os.path.join("RESULT", "CSV")
+GRAPH_OUTPUT_PATH = os.path.join("RESULT", "Graphs")
 
 # Each file header specification
 BUS_FILE_HEADER_LIST = ["ID", "Bus-type", "P_g", "Q_g", "P_L", "Q_L", "|Vi|", "δi"]

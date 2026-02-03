@@ -1,9 +1,8 @@
 from modules.data_loader import DataLoader
 from modules.pf_solver import PowerFlowLoader
-# from modules.exporter import Exporter
+from modules.exporter import Exporter
 
-from config import BUS_FILE_PATH, LINE_FILE_PATH, BUS_FILE_HEADER_LIST, LINE_FILE_HEADER_LIST
-from config import MAX_ITER, TOLERANCE, LOAD_FACTOR, DAMPING_FACTOR, ENERGY_BALANCE_TOLERANCE
+from config import *
 
 class FlowManager : 
     def run_power_flow(self) : 
@@ -22,10 +21,9 @@ class FlowManager :
         print(f"Convergence status: {value}")
         
         # data processing and results saving
-        solver.get_final_results(ENERGY_BALANCE_TOLERANCE)
-        # export to csv and graph
+        bus_results, summary_results = solver.get_final_results(ENERGY_BALANCE_TOLERANCE)
         
-
-if __name__ == "__main__":
-    manager = FlowManager()
-    manager.run_power_flow()
+        # export to csv and graph
+        exporter = Exporter(CSV_OUTPUT_PATH, GRAPH_OUTPUT_PATH, bus_results, summary_results)
+        exporter.export_to_csv()
+        exporter.export_to_graph()

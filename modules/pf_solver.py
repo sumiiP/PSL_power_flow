@@ -236,20 +236,19 @@ class PowerFlowLoader :
             'Q_calc (p.u.)' : self.q_calc
         })
         
-        summary_results = {
-            'Total P Load (p.u.)' : total_p_load,
-            'Total Q Load (p.u.)' : total_q_load,
-            'Total P Loss (p.u.)' : total_p_loss,
-            'Total Q Loss (p.u.)' : total_q_loss,
-            'Slack P Injection (p.u.)' : slack_p_inj,
-            'Slack Q Injection (p.u.)' : slack_q_inj,
-            'Energy Conserved' : is_conserved
-        }
+        summary_results = pd.DataFrame({
+            'Total P Load (p.u.)' : [total_p_load],
+            'Total Q Load (p.u.)' : [total_q_load],
+            'Total P Loss (p.u.)' : [total_p_loss],
+            'Total Q Loss (p.u.)' : [total_q_loss],
+            'Slack P Injection (p.u.)' : [slack_p_inj],
+            'Slack Q Injection (p.u.)' : [slack_q_inj],
+            'Energy Conserved' : [is_conserved]
+        })
         
         # print("\n### Bus Results ###")
         # print(bus_results)
         # print("\n### Summary Results ###")
-        # for key, value in summary_results.items():
-        #     print(f"{key}: {value}")
+        # print(summary_results)
             
         return bus_results, summary_results
