@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+
+# virtual environmnet
+.venv/
+venv/
+
+# IDE Setting
+.idea/
+.vscode/
+
+# Data and results (uncommented where nescessary)
+# DATA/
+RESULT/
