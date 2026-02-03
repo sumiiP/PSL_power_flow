@@ -1,8 +1,9 @@
 from modules.data_loader import DataLoader
 from modules.pf_solver import PowerFlowLoader
+# from modules.exporter import Exporter
 
 from config import BUS_FILE_PATH, LINE_FILE_PATH, BUS_FILE_HEADER_LIST, LINE_FILE_HEADER_LIST
-from config import MAX_ITER, TOLERANCE, LOAD_FACTOR, DAMPING_FACTOR
+from config import MAX_ITER, TOLERANCE, LOAD_FACTOR, DAMPING_FACTOR, ENERGY_BALANCE_TOLERANCE
 
 class FlowManager : 
     def run_power_flow(self) : 
@@ -17,17 +18,11 @@ class FlowManager :
 
         # calculate the power flow equation
         solver = PowerFlowLoader(y_bus, loader.bus_df, id_info, loader.line_df)
-        # solver._calculate_current_power()
-        # print(solver._make_mismatch_vector())
-        # print(solver._make_jacobian())
         value = solver.calculate_power(MAX_ITER, TOLERANCE, LOAD_FACTOR, DAMPING_FACTOR)
         print(f"Convergence status: {value}")
-        # # # data processing
-        # summary_df, bus_df, line_df = solver.get_final_results(ENERGY_BALANCE_TOLERANCE)
         
-        # print(f"total df : {summary_df}")
-        # print(f"bus df : {bus_df}")
-        # print(f"line df : {line_df}")
+        # data processing and results saving
+        solver.get_final_results(ENERGY_BALANCE_TOLERANCE)
         # export to csv and graph
         
 

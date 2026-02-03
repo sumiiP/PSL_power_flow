@@ -181,100 +181,75 @@ class PowerFlowLoader :
         print(f"❌ Did not converge. Max mismatch: {max_mismatch:.6e}")
         return False
         
-    # def _update_results(self):
-    #     # final p_calc, q_calc update
-    #     p_final, q_final = self._calculate_current_power()
+    def get_final_results(self, ENERGY_BALANCE_TOLERANCE) : 
+        # final voltage magnitude and angle in degrees
+        V_final = self.v
+        delta_deg = np.degrees(self.delta)
         
-    #     self.df['e'] = self.e
-    #     self.df['f'] = self.f
-    #     self.df['V_mag'] = np.sqrt(self.e**2 + self.f**2)
-    #     self.df['V_angle'] = np.degrees(np.arctan2(self.f, self.e))
-    #     self.df['P_calc'] = p_final
-    #     self.df['Q_calc'] = q_final
+        # line loss calculation (Line by line)
+        total_p_loss = 0.0
+        total_q_loss = 0.0
+        V_complex = self.v * np.exp(1j * self.delta) # V = |V|*e^(jδ) = |V|*(cosδ + jsinδ)
         
-    #     print(self.df)
+        for _, line in self.line_df.iterrows() :
+            # index adjustment (ID starts from 1)
+            i, j = int(line['ID_from']) - 1, int(line['ID_to']) - 1
+            # line parameters (R, X, B)
+            Z = line['R'] + 1j * line['X']
+            B_half = 1j * (line['B'] / 2)
+            
+            # step1 : calculate line current from bus i to j and j to i --> Iij = (Vi - Vj)/Z + B/2*Vi
+            Iij = (V_complex[i] - V_complex[j]) / Z + B_half * V_complex[i]
+            Iji = (V_complex[j] - V_complex[i]) / Z + B_half * V_complex[j]
+            
+            # step2 : calculate complex power flow Sij and Sji --> Sij = Vi * conj(Iij), Sji = Vj * conj(Iji)
+            Sij = V_complex[i] * np.conj(Iij)
+            Sji = V_complex[j] * np.conj(Iji)
+            
+            line_loss = Sij + Sji
+            total_p_loss += line_loss.real
+            total_q_loss += line_loss.imag
     
-    # def get_final_results(self, ENERGY_BALANCE_TOLERANCE) :
-    #     # Update p_calc and q_calc based on the final converged e and f values.
-    #     self._calculate_current_power()
+        # total load calculation
+        total_p_load = np.sum(self.df['P_L'].values)
+        total_q_load = np.sum(self.df['Q_L'].values)
         
-    #     V_mag = np.sqrt(self.e**2 + self.f**2)
-    #     V_angle = np.degrees(np.arctan2(self.f, self.e))
+        # slack bus injection calculation
+        slack_p_inj = self.p_calc[0] + self.df.loc[0, 'P_L']
+        slack_q_inj = self.q_calc[0] + self.df.loc[0, 'Q_L']
         
-    #     # mag and angle results per line
-    #     bus_results_data = {
-    #         'Bus_ID': self.df['ID'].values,
-    #         'V_mag': V_mag,
-    #         'V_angle_degree': V_angle,
-    #         'P_calc': self.p_calc,
-    #         'Q_calc': self.q_calc
-    #     }
-    #     bus_results_df = pd.DataFrame(bus_results_data)
+        # energy balance check --> Injection = Load + Loss
+        total_p_gen = np.sum(self.p_calc + self.df['P_L'].values)
+        total_q_gen = np.sum(self.q_calc + self.df['Q_L'].values)
         
-    #     # calculated to line loss
-    #     line_flow_df, total_line_loss_p = self._calculate_line_flows()
+        energy_p_check = abs(total_p_gen - (total_p_load + total_p_loss)) < ENERGY_BALANCE_TOLERANCE
+        energy_q_check = abs(total_q_gen - (total_q_load + total_q_loss)) < ENERGY_BALANCE_TOLERANCE
+        is_conserved = energy_p_check and energy_q_check
         
-    #     # value1 - total Load
-    #     total_load_p = self.df['P_L'].sum()
-    #     total_load_q = self.df['Q_L'].sum()
+        # make results DataFrame
+        bus_results = pd.DataFrame({
+            'ID' : self.df['ID'],
+            'BUS' : range(1, len(self.df) + 1),
+            '|V| (p.u.)' : V_final,
+            'δ (deg)' : delta_deg,
+            'P_calc (p.u.)' : self.p_calc,
+            'Q_calc (p.u.)' : self.q_calc
+        })
         
-    #     # value2 - slack bus injection amount (Bus-type 1)
-    #     slack_idx = self.df[self.df['Bus-type'] == 1].index
-    #     slack_p = self.p_calc[slack_idx].sum()
-    #     slack_q = self.q_calc[slack_idx].sum()
+        summary_results = {
+            'Total P Load (p.u.)' : total_p_load,
+            'Total Q Load (p.u.)' : total_q_load,
+            'Total P Loss (p.u.)' : total_p_loss,
+            'Total Q Loss (p.u.)' : total_q_loss,
+            'Slack P Injection (p.u.)' : slack_p_inj,
+            'Slack Q Injection (p.u.)' : slack_q_inj,
+            'Energy Conserved' : is_conserved
+        }
         
-    #     # value3 - determining whether energy is conserved (Gen = Load + Loss)
-    #     total_gen_p = self.p_calc.sum() + self.df['P_L'].sum()
-    #     is_p_balanced = np.isclose( slack_p + self.df['P_g'].sum(), 
-    #                                 total_load_p + total_line_loss_p, atol = ENERGY_BALANCE_TOLERANCE )
-        
-    #     # result dataframe
-    #     summary_data = {
-    #         'Total_Line_Loss_P' : [total_line_loss_p],
-    #         'Total_Load_P' : [total_load_p],
-    #         'Slack_Injection_P' : [slack_p],
-    #         'Energy_Balance_Check' : [is_p_balanced]
-    #     }
-        
-    #     return pd.DataFrame(summary_data), bus_results_df, line_flow_df
-        
-    # def _calculate_line_flows(self) :
-    #     # initial setting
-    #     line_results = []
-    #     total_loss_p = 0
-        
-    #     for _, row in self.line_df.iterrows():
-    #         # extract to index (1-based to 0-based)
-    #         from_idx = int(row['ID_from']) - 1
-    #         to_idx = int(row['ID_to']) - 1
-
-    #         # Bus voltage at both ends (complex type)
-    #         Vi = complex(self.e[from_idx], self.f[from_idx])
-    #         Vj = complex(self.e[to_idx], self.f[to_idx])
-
-    #         # line admittance  y_ij = 1 / (R + jX)
-    #         z_line = complex(row['R'], row['X'])
-    #         y_ij = 1 / z_line
-    #         b_shunt = complex(0, row['B'] / 2) # charging components
-
-    #         # From -> To flowing current : I_ij = (Vi - Vj)*y_ij + Vi*b_shunt
-    #         I_ij = (Vi - Vj) * y_ij + Vi * b_shunt
-    #         S_ij = Vi * np.conj(I_ij) # transmission power
-
-    #         # To -> From flowing current : I_ji = (Vj - Vi)*y_ij + Vj*b_shunt
-    #         I_ji = (Vj - Vi) * y_ij + Vj * b_shunt
-    #         S_ji = Vj * np.conj(I_ji) # reception power
-
-    #         # Line loss = (transmission P + reception P) (부호가 반대이므로 합치면 손실만 남음)
-    #         loss_p = S_ij.real + S_ji.real
-    #         total_loss_p += loss_p
-
-    #         line_results.append({
-    #             'from': from_idx + 1,
-    #             'p_send': S_ij.real,
-    #             'to': to_idx + 1,
-    #             'p_recv': -S_ji.real, # From a reception power perspective, sign reversal
-    #             'loss': loss_p
-    #         })
-
-    #     return pd.DataFrame(line_results), total_loss_p
+        # print("\n### Bus Results ###")
+        # print(bus_results)
+        # print("\n### Summary Results ###")
+        # for key, value in summary_results.items():
+        #     print(f"{key}: {value}")
+            
+        return bus_results, summary_results

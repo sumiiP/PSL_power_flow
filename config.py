@@ -15,4 +15,4 @@ LOAD_FACTOR = 0.01
 DAMPING_FACTOR = 0.5
 
 # Tolerance for determining the law of conservation of energy (Gen = Load + Loss)
-ENERGY_BALANCE_TOLERANCE = 1e-3
+ENERGY_BALANCE_TOLERANCE = 1e-6
