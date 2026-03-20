@@ -33,6 +33,7 @@ The project processes data through two main structures:
 2. **Matrix Initialization**: Formulate the $Y_{bus}$ matrix.
 3. **Iteration Loop**: Compute power mismatches $\rightarrow$ Update Jacobian $\rightarrow$ Solve for corrections $\rightarrow$ Update $V$ and $\delta$.
 4. **Final Calculation**: Determine line flows and total system losses.
+<img width="200" height="550" alt="image" src="https://github.com/user-attachments/assets/c6d78859-10e8-488b-91e6-a701ab7b0b3d" />
 
 ---
 
